@@ -65,6 +65,9 @@ export interface CalculatorConfig {
   unitsPerDayQuestion: string;
   unitsAvoidedLabel: string;
   moneySavedLabel: string;
+  /** 'currency' formats the second stat as {currencySymbol}{value}; 'hours' treats
+   *  costPerUnit as minutes-per-unit and formats as rounded hours instead. */
+  secondaryStatFormat: 'currency' | 'hours';
 }
 
 export interface PaywallConfig {

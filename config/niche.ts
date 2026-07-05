@@ -32,6 +32,7 @@ const quitVaping: NicheConfig = {
     unitsPerDayQuestion: 'On average, how many pods or disposables do you go through per day?',
     unitsAvoidedLabel: 'Vapes avoided',
     moneySavedLabel: 'Money saved',
+    secondaryStatFormat: 'currency',
   },
   onboardingQuiz: [
     {
@@ -172,12 +173,13 @@ const quitPorn: NicheConfig = {
     currencySymbol: '$',
     unitSingular: 'binge',
     unitPlural: 'binges',
-    defaultCostPerUnit: 0,
-    defaultUnitsPerDay: 1,
-    costPerUnitQuestion: 'Roughly how much time (in minutes) did a typical session cost you?',
-    unitsPerDayQuestion: 'How many times per week were you typically viewing?',
+    defaultCostPerUnit: 20,
+    defaultUnitsPerDay: 0.3,
+    costPerUnitQuestion: 'Roughly how many minutes did a typical session cost you?',
+    unitsPerDayQuestion: 'On average, how many times per day were you viewing?',
     unitsAvoidedLabel: 'Sessions avoided',
     moneySavedLabel: 'Hours reclaimed',
+    secondaryStatFormat: 'hours',
   },
   onboardingQuiz: [
     {
@@ -324,6 +326,7 @@ const quitSugar: NicheConfig = {
     unitsPerDayQuestion: 'How many sugary snacks or drinks do you typically have per day?',
     unitsAvoidedLabel: 'Treats avoided',
     moneySavedLabel: 'Money saved',
+    secondaryStatFormat: 'currency',
   },
   onboardingQuiz: [
     {
@@ -470,6 +473,7 @@ const quitSmoking: NicheConfig = {
     unitsPerDayQuestion: 'On average, how many cigarettes do you smoke per day?',
     unitsAvoidedLabel: 'Cigarettes avoided',
     moneySavedLabel: 'Money saved',
+    secondaryStatFormat: 'currency',
   },
   onboardingQuiz: [
     {

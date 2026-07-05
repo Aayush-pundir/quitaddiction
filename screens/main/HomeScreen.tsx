@@ -39,7 +39,11 @@ export function HomeScreen() {
 
   const why = niche.whyMotivations.find((m) => m.id === whyMotivationId);
   const unitsAvoided = Math.floor((elapsed.totalHours / 24) * unitsPerDay);
-  const moneySaved = unitsAvoided * costPerUnit;
+  const secondaryStatRaw = unitsAvoided * costPerUnit;
+  const secondaryStatDisplay =
+    niche.calculator.secondaryStatFormat === 'hours'
+      ? `${Math.round(secondaryStatRaw / 60)} hrs`
+      : `${niche.calculator.currencySymbol}${secondaryStatRaw.toFixed(2)}`;
 
   return (
     <Screen padded={false}>
@@ -57,8 +61,7 @@ export function HomeScreen() {
           <Card style={styles.statCard}>
             <Text style={[typography.caption, { color: theme.textMuted }]}>{niche.calculator.moneySavedLabel}</Text>
             <Text style={[typography.h3, { color: theme.primary, marginTop: spacing.xs }]}>
-              {niche.calculator.currencySymbol}
-              {moneySaved.toFixed(2)}
+              {secondaryStatDisplay}
             </Text>
           </Card>
           <Card style={styles.statCard}>

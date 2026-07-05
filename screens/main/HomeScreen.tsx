@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../../components/Screen';
 import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
+import { MilestoneBadges } from '../../components/MilestoneBadges';
 import { niche } from '../../config/niche';
 import { useUserStore } from '../../store/userStore';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, typography } from '../../config/theme';
+import type { RootStackParamList } from '../../navigation/types';
 
 function elapsedParts(quitDate: Date) {
   const ms = Math.max(0, Date.now() - quitDate.getTime());
@@ -18,6 +23,7 @@ function elapsedParts(quitDate: Date) {
 
 export function HomeScreen() {
   const { theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const quitDateIso = useUserStore((s) => s.quitDate);
   const whyMotivationId = useUserStore((s) => s.whyMotivationId);
   const costPerUnit = useUserStore((s) => s.costPerUnit);
@@ -36,38 +42,52 @@ export function HomeScreen() {
   const moneySaved = unitsAvoided * costPerUnit;
 
   return (
-    <Screen>
-      <Text style={[typography.h2, { color: theme.text, marginTop: spacing.lg }]}>{niche.streakNoun}</Text>
-      <Card style={{ marginTop: spacing.md }}>
-        <View style={styles.counterRow}>
-          <CounterBlock value={elapsed.days} label="days" theme={theme} />
-          <CounterBlock value={elapsed.hours} label="hrs" theme={theme} />
-          <CounterBlock value={elapsed.minutes} label="min" theme={theme} />
-        </View>
-      </Card>
-
-      <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
-          <Text style={[typography.caption, { color: theme.textMuted }]}>{niche.calculator.moneySavedLabel}</Text>
-          <Text style={[typography.h3, { color: theme.primary, marginTop: spacing.xs }]}>
-            {niche.calculator.currencySymbol}
-            {moneySaved.toFixed(2)}
-          </Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[typography.caption, { color: theme.textMuted }]}>{niche.calculator.unitsAvoidedLabel}</Text>
-          <Text style={[typography.h3, { color: theme.primary, marginTop: spacing.xs }]}>{unitsAvoided}</Text>
-        </Card>
-      </View>
-
-      {why && (
+    <Screen padded={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={[typography.h2, { color: theme.text, marginTop: spacing.lg }]}>{niche.streakNoun}</Text>
         <Card style={{ marginTop: spacing.md }}>
-          <Text style={[typography.caption, { color: theme.textMuted }]}>Your why</Text>
-          <Text style={[typography.bodyBold, { color: theme.text, marginTop: spacing.xs }]}>
-            {why.icon} {why.label}
-          </Text>
+          <View style={styles.counterRow}>
+            <CounterBlock value={elapsed.days} label="days" theme={theme} />
+            <CounterBlock value={elapsed.hours} label="hrs" theme={theme} />
+            <CounterBlock value={elapsed.minutes} label="min" theme={theme} />
+          </View>
         </Card>
-      )}
+
+        <View style={styles.statsRow}>
+          <Card style={styles.statCard}>
+            <Text style={[typography.caption, { color: theme.textMuted }]}>{niche.calculator.moneySavedLabel}</Text>
+            <Text style={[typography.h3, { color: theme.primary, marginTop: spacing.xs }]}>
+              {niche.calculator.currencySymbol}
+              {moneySaved.toFixed(2)}
+            </Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={[typography.caption, { color: theme.textMuted }]}>{niche.calculator.unitsAvoidedLabel}</Text>
+            <Text style={[typography.h3, { color: theme.primary, marginTop: spacing.xs }]}>{unitsAvoided}</Text>
+          </Card>
+        </View>
+
+        {why && (
+          <Card style={{ marginTop: spacing.md }}>
+            <Text style={[typography.caption, { color: theme.textMuted }]}>Your why</Text>
+            <Text style={[typography.bodyBold, { color: theme.text, marginTop: spacing.xs }]}>
+              {why.icon} {why.label}
+            </Text>
+          </Card>
+        )}
+
+        <Text style={[typography.bodyBold, { color: theme.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+          Milestones
+        </Text>
+        <MilestoneBadges milestones={niche.milestones} elapsedHours={elapsed.totalHours} />
+
+        <Button
+          label={`I ${niche.relapseTermPast}`}
+          variant="ghost"
+          onPress={() => navigation.navigate('Relapse')}
+          style={{ marginTop: spacing.xl, marginBottom: spacing.lg }}
+        />
+      </ScrollView>
     </Screen>
   );
 }
@@ -82,6 +102,7 @@ function CounterBlock({ value, label, theme }: { value: number; label: string; t
 }
 
 const styles = StyleSheet.create({
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   counterRow: { flexDirection: 'row', justifyContent: 'space-around' },
   counterBlock: { alignItems: 'center' },
   statsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },

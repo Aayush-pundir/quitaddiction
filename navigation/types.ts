@@ -18,4 +18,8 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;
+  SOSBreathing: undefined;
+  SOSDistraction: undefined;
+  SOSMotivation: undefined;
+  Relapse: undefined;
 };

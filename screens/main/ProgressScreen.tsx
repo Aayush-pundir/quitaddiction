@@ -6,19 +6,11 @@ import { useUserStore } from '../../store/userStore';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, typography } from '../../config/theme';
 import type { RecoveryStage } from '../../config/niche';
+import { computeElapsed, formatDuration } from '../../lib/calculations';
 
 function elapsedHours(quitDateIso: string | null) {
   if (!quitDateIso) return 0;
-  return (Date.now() - new Date(quitDateIso).getTime()) / 3_600_000;
-}
-
-function formatDuration(hours: number) {
-  if (hours < 24) return `${hours < 1 ? Math.round(hours * 60) + ' min' : Math.round(hours) + ' hr'}`;
-  const days = hours / 24;
-  if (days < 30) return `${Math.round(days)} day${Math.round(days) === 1 ? '' : 's'}`;
-  const months = days / 30;
-  if (months < 12) return `${Math.round(months)} month${Math.round(months) === 1 ? '' : 's'}`;
-  return `${Math.round(months / 12)} year${Math.round(months / 12) === 1 ? '' : 's'}`;
+  return computeElapsed(new Date(quitDateIso)).totalHours;
 }
 
 export function ProgressScreen() {

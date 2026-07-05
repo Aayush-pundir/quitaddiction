@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../hooks/useTheme';
@@ -10,9 +11,16 @@ export function SOSButton() {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  function handlePress() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('SOSBreathing');
+  }
+
   return (
     <Pressable
-      onPress={() => navigation.navigate('SOSBreathing')}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel="SOS, get urge help now"
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: theme.danger, opacity: pressed ? 0.85 : 1 },

@@ -1,46 +1,49 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Screen } from '../../components/Screen';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { QuitDateEditor } from '../../components/QuitDateEditor';
 import { niche } from '../../config/niche';
 import { useUserStore } from '../../store/userStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useTheme } from '../../hooks/useTheme';
-import { signInWithEmail, signUpWithEmail } from '../../lib/supabase/auth';
+import { signInWithEmail, signOut, signUpWithEmail, getAuthStatus, type AuthStatus } from '../../lib/supabase/auth';
 import { radius, spacing, typography } from '../../config/theme';
 
 export function SettingsScreen() {
-  const { theme, mode } = useTheme();
+  const { theme } = useTheme();
   const quitDate = useUserStore((s) => s.quitDate);
   const setQuitDate = useUserStore((s) => s.setQuitDate);
   const notificationOptIn = useUserStore((s) => s.notificationOptIn);
   const setNotificationOptIn = useUserStore((s) => s.setNotificationOptIn);
   const isPremium = useUserStore((s) => s.isPremium);
+  const hardReset = useUserStore((s) => s.hardReset);
   const themeOverride = useThemeStore((s) => s.override);
   const setThemeOverride = useThemeStore((s) => s.setOverride);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [notificationBusy, setNotificationBusy] = useState(false);
 
-  const quitDaysAgo = quitDate
-    ? Math.floor((Date.now() - new Date(quitDate).getTime()) / 86_400_000)
-    : 0;
+  useEffect(() => {
+    getAuthStatus().then(setAuthStatus);
+  }, []);
 
-  function adjustQuitDate(deltaDays: number) {
-    const base = quitDate ? new Date(quitDate) : new Date();
-    base.setDate(base.getDate() - deltaDays);
-    setQuitDate(base.toISOString());
-  }
-
-  async function requestNotificationPermission() {
-    // Stub: real push infra (Phase 2) will call Notifications.requestPermissionsAsync().
-    setNotificationOptIn(!notificationOptIn);
-    Alert.alert(
-      notificationOptIn ? 'Notifications disabled' : 'Notifications enabled',
-      'Push notification infrastructure is stubbed for this MVP.'
-    );
+  async function handleNotificationToggle(next: boolean) {
+    setNotificationBusy(true);
+    const granted = await setNotificationOptIn(next);
+    setNotificationBusy(false);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (next && !granted) {
+      Alert.alert(
+        'Notifications unavailable',
+        'This platform/device does not support local notifications, or permission was denied. Check your OS notification settings for this app.'
+      );
+    }
   }
 
   async function handleAuth(kind: 'signIn' | 'signUp') {
@@ -50,6 +53,31 @@ export function SettingsScreen() {
     }
     const { error } = kind === 'signIn' ? await signInWithEmail(email, password) : await signUpWithEmail(email, password);
     setAuthMessage(error ? error.message : kind === 'signIn' ? 'Signed in.' : 'Check your email to confirm.');
+    if (!error) setAuthStatus(await getAuthStatus());
+  }
+
+  async function handleSignOut() {
+    await signOut();
+    setAuthStatus(await getAuthStatus());
+    setAuthMessage('Signed out.');
+  }
+
+  function handleResetAllData() {
+    Alert.alert(
+      'Reset all local data',
+      'This permanently deletes your quit date, streak history, relapse/urge logs, and read lessons from this device. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset everything',
+          style: 'destructive',
+          onPress: () => {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            hardReset();
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -60,24 +88,25 @@ export function SettingsScreen() {
         </Text>
 
         <Card style={{ marginBottom: spacing.md }}>
-          <Text style={[typography.bodyBold, { color: theme.text }]}>Quit date</Text>
-          <Text style={[typography.body, { color: theme.textMuted, marginTop: spacing.xs }]}>
-            {quitDate ? new Date(quitDate).toLocaleDateString() : 'Not set'} ({quitDaysAgo} day
-            {quitDaysAgo === 1 ? '' : 's'} ago)
-          </Text>
-          <View style={styles.stepperRow}>
-            <Button label="− 1 day" variant="secondary" onPress={() => adjustQuitDate(-1)} style={styles.stepperButton} />
-            <Button label="+ 1 day" variant="secondary" onPress={() => adjustQuitDate(1)} style={styles.stepperButton} />
-          </View>
+          <Text style={[typography.bodyBold, { color: theme.text, marginBottom: spacing.sm }]}>Quit date</Text>
+          <QuitDateEditor
+            value={quitDate ? new Date(quitDate) : new Date()}
+            onChange={(date) => setQuitDate(date.toISOString())}
+          />
         </Card>
 
         <Card style={{ marginBottom: spacing.md }}>
           <View style={styles.rowBetween}>
             <Text style={[typography.bodyBold, { color: theme.text }]}>Reminders & notifications</Text>
-            <Switch value={notificationOptIn} onValueChange={requestNotificationPermission} />
+            <Switch
+              value={notificationOptIn}
+              onValueChange={handleNotificationToggle}
+              disabled={notificationBusy}
+              accessibilityLabel="Toggle reminders and notifications"
+            />
           </View>
           <Text style={[typography.caption, { color: theme.textMuted, marginTop: spacing.xs }]}>
-            Push infrastructure is stubbed for this MVP; this just saves your preference.
+            Schedules on-device milestone celebrations and a daily reminder. Requires OS notification permission.
           </Text>
         </Card>
 
@@ -111,34 +140,58 @@ export function SettingsScreen() {
           />
         </Card>
 
-        <Card>
+        <Card style={{ marginBottom: spacing.md }}>
           <Text style={[typography.bodyBold, { color: theme.text, marginBottom: spacing.sm }]}>Account</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor={theme.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          />
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={theme.textMuted}
-            secureTextEntry
-            style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: spacing.sm }]}
-          />
-          {authMessage && (
-            <Text style={[typography.caption, { color: theme.textMuted, marginTop: spacing.xs }]}>{authMessage}</Text>
+          {authStatus?.signedIn && !authStatus.isAnonymous ? (
+            <>
+              <Text style={[typography.body, { color: theme.text }]}>Signed in as {authStatus.email}</Text>
+              <Button label="Sign out" variant="secondary" onPress={handleSignOut} style={{ marginTop: spacing.sm }} />
+            </>
+          ) : (
+            <>
+              <Text style={[typography.caption, { color: theme.textMuted, marginBottom: spacing.sm }]}>
+                {authStatus?.signedIn
+                  ? 'Using an anonymous account. Add an email to keep your data if you switch devices.'
+                  : "You're not signed in yet - your data stays on this device only. Add an email to back it up."}
+              </Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                placeholderTextColor={theme.textMuted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                accessibilityLabel="Email"
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+              />
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+                accessibilityLabel="Password"
+                style={[styles.input, { color: theme.text, borderColor: theme.border, marginTop: spacing.sm }]}
+              />
+              <View style={styles.authRow}>
+                <Button label="Sign in" variant="secondary" onPress={() => handleAuth('signIn')} style={styles.stepperButton} />
+                <Button label="Sign up" onPress={() => handleAuth('signUp')} style={styles.stepperButton} />
+              </View>
+              <Button label="Continue with Apple (coming soon)" variant="ghost" disabled onPress={() => {}} style={{ marginTop: spacing.sm }} />
+              <Button label="Continue with Google (coming soon)" variant="ghost" disabled onPress={() => {}} style={{ marginTop: spacing.sm }} />
+            </>
           )}
-          <View style={styles.authRow}>
-            <Button label="Sign in" variant="secondary" onPress={() => handleAuth('signIn')} style={styles.stepperButton} />
-            <Button label="Sign up" onPress={() => handleAuth('signUp')} style={styles.stepperButton} />
-          </View>
-          <Button label="Continue with Apple (coming soon)" variant="ghost" disabled onPress={() => {}} style={{ marginTop: spacing.sm }} />
-          <Button label="Continue with Google (coming soon)" variant="ghost" disabled onPress={() => {}} style={{ marginTop: spacing.sm }} />
+          {authMessage && (
+            <Text style={[typography.caption, { color: theme.textMuted, marginTop: spacing.sm }]}>{authMessage}</Text>
+          )}
+        </Card>
+
+        <Card>
+          <Text style={[typography.bodyBold, { color: theme.danger }]}>Danger zone</Text>
+          <Text style={[typography.caption, { color: theme.textMuted, marginTop: spacing.xs, marginBottom: spacing.sm }]}>
+            Permanently erase your quit date, streak history, and logs from this device.
+          </Text>
+          <Button label="Reset all local data" variant="ghost" onPress={handleResetAllData} />
         </Card>
       </ScrollView>
     </Screen>
@@ -148,7 +201,6 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   scroll: { paddingBottom: spacing.xl },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stepperRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   stepperButton: { flex: 1 },
   themeRow: { flexDirection: 'row', gap: spacing.sm },
   themeButton: { flex: 1 },

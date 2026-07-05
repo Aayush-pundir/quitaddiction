@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { OnboardingStackParamList } from '../../navigation/types';
 import { Screen } from '../../components/Screen';
@@ -20,6 +21,7 @@ export function PaywallScreen({ navigation }: Props) {
   const [loading, setLoading] = useState<'purchase' | 'restore' | null>(null);
 
   const { quitDate, whyMotivationId, costPerUnit, unitsPerDay } = useOnboardingStore();
+  const resetOnboardingDraft = useOnboardingStore((s) => s.reset);
   const completeOnboarding = useUserStore((s) => s.completeOnboarding);
   const setPremium = useUserStore((s) => s.setPremium);
 
@@ -31,6 +33,8 @@ export function PaywallScreen({ navigation }: Props) {
       unitsPerDay,
     });
     setPremium(isPremium);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    resetOnboardingDraft();
   }
 
   async function handlePurchase() {

@@ -11,15 +11,7 @@ import { useUserStore } from '../../store/userStore';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, typography } from '../../config/theme';
 import type { RootStackParamList } from '../../navigation/types';
-
-function elapsedParts(quitDate: Date) {
-  const ms = Math.max(0, Date.now() - quitDate.getTime());
-  const totalSeconds = Math.floor(ms / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return { days, hours, minutes, totalHours: ms / 3_600_000 };
-}
+import { computeElapsed, computeUnitsAvoided, formatSecondaryStat } from '../../lib/calculations';
 
 export function HomeScreen() {
   const { theme } = useTheme();
@@ -30,20 +22,21 @@ export function HomeScreen() {
   const unitsPerDay = useUserStore((s) => s.unitsPerDay);
 
   const quitDate = quitDateIso ? new Date(quitDateIso) : new Date();
-  const [elapsed, setElapsed] = useState(() => elapsedParts(quitDate));
+  const [elapsed, setElapsed] = useState(() => computeElapsed(quitDate));
 
   useEffect(() => {
-    const interval = setInterval(() => setElapsed(elapsedParts(quitDate)), 1000 * 30);
+    const interval = setInterval(() => setElapsed(computeElapsed(quitDate)), 1000 * 30);
     return () => clearInterval(interval);
   }, [quitDateIso]);
 
   const why = niche.whyMotivations.find((m) => m.id === whyMotivationId);
-  const unitsAvoided = Math.floor((elapsed.totalHours / 24) * unitsPerDay);
-  const secondaryStatRaw = unitsAvoided * costPerUnit;
-  const secondaryStatDisplay =
-    niche.calculator.secondaryStatFormat === 'hours'
-      ? `${Math.round(secondaryStatRaw / 60)} hrs`
-      : `${niche.calculator.currencySymbol}${secondaryStatRaw.toFixed(2)}`;
+  const unitsAvoided = computeUnitsAvoided(elapsed.totalHours, unitsPerDay);
+  const secondaryStatDisplay = formatSecondaryStat(
+    unitsAvoided,
+    costPerUnit,
+    niche.calculator.secondaryStatFormat,
+    niche.calculator.currencySymbol
+  );
 
   return (
     <Screen padded={false}>

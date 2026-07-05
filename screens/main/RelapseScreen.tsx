@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { Screen } from '../../components/Screen';
@@ -21,6 +22,7 @@ export function RelapseScreen({ navigation }: Props) {
 
   function handleSubmit() {
     logRelapse({ triggerTagId, emotionTagId });
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setSubmitted(true);
   }
 

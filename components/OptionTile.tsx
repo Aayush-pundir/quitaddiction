@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 import { radius, spacing, typography } from '../config/theme';
 
@@ -12,9 +13,18 @@ interface OptionTileProps {
 
 export function OptionTile({ icon, label, selected, onPress }: OptionTileProps) {
   const { theme } = useTheme();
+
+  function handlePress() {
+    void Haptics.selectionAsync();
+    onPress();
+  }
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.tile,
         {

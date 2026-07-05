@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import { radius, spacing, typography } from '../config/theme';
 import type { Milestone } from '../config/niche';
+import { isMilestoneReached } from '../lib/calculations';
 
 interface MilestoneBadgesProps {
   milestones: Milestone[];
@@ -14,10 +15,11 @@ export function MilestoneBadges({ milestones, elapsedHours }: MilestoneBadgesPro
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {milestones.map((milestone) => {
-        const reached = elapsedHours >= milestone.hours;
+        const reached = isMilestoneReached(milestone.hours, elapsedHours);
         return (
           <View
             key={milestone.id}
+            accessibilityLabel={`${milestone.title}${reached ? ', reached' : ', locked'}`}
             style={[
               styles.badge,
               {

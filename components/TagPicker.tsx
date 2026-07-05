@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 import { radius, spacing, typography } from '../config/theme';
 import type { TagOption } from '../config/niche';
@@ -19,7 +20,13 @@ export function TagPicker({ tags, selectedId, onSelect }: TagPickerProps) {
         return (
           <Pressable
             key={tag.id}
-            onPress={() => onSelect(tag.id)}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              onSelect(tag.id);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={tag.label}
+            accessibilityState={{ selected }}
             style={[
               styles.chip,
               {

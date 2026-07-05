@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase/client';
 import { niche, ACTIVE_NICHE } from '../config/niche';
 
@@ -46,75 +48,84 @@ interface CommunityState {
   toggleLike: (postId: string) => void;
 }
 
-export const useCommunityStore = create<CommunityState>((set, get) => ({
-  posts: MOCK_POSTS,
-  loaded: false,
+export const useCommunityStore = create<CommunityState>()(
+  persist(
+    (set, get) => ({
+      posts: MOCK_POSTS,
+      loaded: false,
 
-  loadFeed: async () => {
-    try {
-      const { data, error } = await supabase
-        .from('feed_posts')
-        .select('id, body, streak_hours_at_post, created_at')
-        .eq('niche_id', ACTIVE_NICHE)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error || !data || data.length === 0) throw error ?? new Error('empty');
-      set({
-        posts: data.map((row) => ({
-          id: row.id,
-          body: row.body,
-          streakHoursAtPost: row.streak_hours_at_post ?? 0,
+      loadFeed: async () => {
+        try {
+          const { data, error } = await supabase
+            .from('feed_posts')
+            .select('id, body, streak_hours_at_post, created_at')
+            .eq('niche_id', ACTIVE_NICHE)
+            .order('created_at', { ascending: false })
+            .limit(50);
+          if (error || !data || data.length === 0) throw error ?? new Error('empty');
+          set({
+            posts: data.map((row) => ({
+              id: row.id,
+              body: row.body,
+              streakHoursAtPost: row.streak_hours_at_post ?? 0,
+              likeCount: 0,
+              likedByMe: false,
+              createdAt: row.created_at,
+            })),
+            loaded: true,
+          });
+        } catch (err) {
+          console.warn('[supabase] loadFeed falling back to locally persisted posts (non-fatal)', err);
+          set({ loaded: true });
+        }
+      },
+
+      addPost: async (body, streakHoursAtPost) => {
+        const optimistic: FeedPost = {
+          id: `local-${Date.now()}`,
+          body,
+          streakHoursAtPost,
           likeCount: 0,
           likedByMe: false,
-          createdAt: row.created_at,
-        })),
-        loaded: true,
-      });
-    } catch (err) {
-      console.warn('[supabase] loadFeed falling back to local mock data (non-fatal)', err);
-      set({ loaded: true });
+          createdAt: new Date().toISOString(),
+        };
+        set({ posts: [optimistic, ...get().posts] });
+
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          if (!session.session) return;
+          await supabase.from('feed_posts').insert({
+            user_id: session.session.user.id,
+            niche_id: ACTIVE_NICHE,
+            body,
+            streak_hours_at_post: streakHoursAtPost,
+          });
+        } catch (err) {
+          console.warn('[supabase] addPost remote insert failed (kept locally)', err);
+        }
+      },
+
+      toggleLike: (postId) => {
+        set({
+          posts: get().posts.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  likedByMe: !post.likedByMe,
+                  likeCount: post.likeCount + (post.likedByMe ? -1 : 1),
+                }
+              : post
+          ),
+        });
+      },
+    }),
+    {
+      name: 'quitaddiction-community-store',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ posts: state.posts }),
     }
-  },
-
-  addPost: async (body, streakHoursAtPost) => {
-    const optimistic: FeedPost = {
-      id: `local-${Date.now()}`,
-      body,
-      streakHoursAtPost,
-      likeCount: 0,
-      likedByMe: false,
-      createdAt: new Date().toISOString(),
-    };
-    set({ posts: [optimistic, ...get().posts] });
-
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) return;
-      await supabase.from('feed_posts').insert({
-        user_id: session.session.user.id,
-        niche_id: ACTIVE_NICHE,
-        body,
-        streak_hours_at_post: streakHoursAtPost,
-      });
-    } catch (err) {
-      console.warn('[supabase] addPost remote insert failed (kept locally)', err);
-    }
-  },
-
-  toggleLike: (postId) => {
-    set({
-      posts: get().posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              likedByMe: !post.likedByMe,
-              likeCount: post.likeCount + (post.likedByMe ? -1 : 1),
-            }
-          : post
-      ),
-    });
-  },
-}));
+  )
+);
 
 export function streakLabelForHours(hours: number): string {
   if (hours < 24) return `${Math.floor(hours)}h ${niche.streakNoun}`;

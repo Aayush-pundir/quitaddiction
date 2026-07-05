@@ -30,3 +30,24 @@ export async function signInWithEmail(email: string, password: string) {
 export async function signOut() {
   return supabase.auth.signOut();
 }
+
+export interface AuthStatus {
+  signedIn: boolean;
+  isAnonymous: boolean;
+  email: string | null;
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user ?? null;
+    return {
+      signedIn: !!user,
+      isAnonymous: !!user?.is_anonymous,
+      email: user?.email ?? null,
+    };
+  } catch (err) {
+    console.warn('[supabase] getAuthStatus failed (non-fatal)', err);
+    return { signedIn: false, isAnonymous: false, email: null };
+  }
+}

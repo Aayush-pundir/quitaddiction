@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { Screen } from '../../components/Screen';
@@ -25,6 +26,7 @@ export function SOSMotivationScreen({ navigation }: Props) {
 
   function handleDone() {
     logUrge({ triggerTagId });
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     navigation.replace('Main');
   }
 

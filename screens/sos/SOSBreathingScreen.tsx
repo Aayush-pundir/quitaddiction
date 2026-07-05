@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -35,6 +36,7 @@ export function SOSBreathingScreen({ navigation }: Props) {
     );
 
     const interval = setInterval(() => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setPhase((prev) => (prev === 'in' ? 'out' : 'in'));
       setCyclesLeft((prev) => (phase === 'out' ? Math.max(0, prev - 1) : prev));
     }, BREATH_SECONDS * 1000);
@@ -51,8 +53,10 @@ export function SOSBreathingScreen({ navigation }: Props) {
       <View style={styles.content}>
         <Text style={styles.eyebrow}>Let's ride this out together</Text>
         <View style={styles.circleWrap}>
-          <Animated.View style={[styles.circle, animatedStyle]} />
-          <Text style={styles.phaseText}>{phase === 'in' ? 'Breathe in' : 'Breathe out'}</Text>
+          <Animated.View style={[styles.circle, animatedStyle]} accessibilityElementsHidden importantForAccessibility="no" />
+          <Text style={styles.phaseText} accessibilityLiveRegion="polite">
+            {phase === 'in' ? 'Breathe in' : 'Breathe out'}
+          </Text>
         </View>
         <Text style={styles.hint}>
           {cyclesLeft > 0 ? `${cyclesLeft} more breath${cyclesLeft === 1 ? '' : 's'}` : 'Great job'}

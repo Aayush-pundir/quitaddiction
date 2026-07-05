@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { logRelapse, logUrgeEvent, markLessonReadRemote } from '../lib/supabase/sync';
+import { rescheduleAllNotifications, cancelAllScheduledNotifications } from '../lib/notifications';
+import { useOnboardingStore } from './onboardingStore';
 
 export interface RelapseLogEntry {
   id: string;
@@ -35,37 +37,51 @@ interface UserState {
   }) => void;
   setQuitDate: (quitDate: string) => void;
   setPremium: (isPremium: boolean) => void;
-  setNotificationOptIn: (optIn: boolean) => void;
+  setNotificationOptIn: (optIn: boolean) => Promise<boolean>;
   logRelapse: (entry: { triggerTagId: string | null; emotionTagId: string | null }) => void;
   logUrge: (entry: { triggerTagId: string | null }) => void;
   markLessonRead: (lessonId: string) => void;
-  resetOnboarding: () => void;
+  hardReset: () => void;
 }
+
+const initialState = {
+  hasCompletedOnboarding: false,
+  quitDate: null,
+  whyMotivationId: null,
+  costPerUnit: 0,
+  unitsPerDay: 0,
+  isPremium: false,
+  notificationOptIn: false,
+  relapseHistory: [],
+  urgeHistory: [],
+  readLessonIds: [],
+} satisfies Partial<UserState>;
 
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
-      hasCompletedOnboarding: false,
-      quitDate: null,
-      whyMotivationId: null,
-      costPerUnit: 0,
-      unitsPerDay: 0,
-      isPremium: false,
-      notificationOptIn: false,
-      relapseHistory: [],
-      urgeHistory: [],
-      readLessonIds: [],
-      completeOnboarding: (data) =>
+      ...initialState,
+      completeOnboarding: (data) => {
         set({
           hasCompletedOnboarding: true,
           quitDate: data.quitDate,
           whyMotivationId: data.whyMotivationId,
           costPerUnit: data.costPerUnit,
           unitsPerDay: data.unitsPerDay,
-        }),
-      setQuitDate: (quitDate) => set({ quitDate }),
+        });
+        void rescheduleAllNotifications(new Date(data.quitDate), get().notificationOptIn);
+      },
+      setQuitDate: (quitDate) => {
+        set({ quitDate });
+        void rescheduleAllNotifications(new Date(quitDate), get().notificationOptIn);
+      },
       setPremium: (isPremium) => set({ isPremium }),
-      setNotificationOptIn: (notificationOptIn) => set({ notificationOptIn }),
+      setNotificationOptIn: async (optIn) => {
+        const quitDate = new Date(get().quitDate ?? Date.now());
+        const granted = await rescheduleAllNotifications(quitDate, optIn);
+        set({ notificationOptIn: granted });
+        return granted;
+      },
       logRelapse: (entry) => {
         const now = new Date().toISOString();
         set({
@@ -76,6 +92,7 @@ export const useUserStore = create<UserState>()(
           ],
         });
         void logRelapse(entry);
+        void rescheduleAllNotifications(new Date(now), get().notificationOptIn);
       },
       logUrge: (entry) => {
         const now = new Date().toISOString();
@@ -89,14 +106,11 @@ export const useUserStore = create<UserState>()(
         set({ readLessonIds: [...get().readLessonIds, lessonId] });
         void markLessonReadRemote(lessonId);
       },
-      resetOnboarding: () =>
-        set({
-          hasCompletedOnboarding: false,
-          quitDate: null,
-          whyMotivationId: null,
-          costPerUnit: 0,
-          unitsPerDay: 0,
-        }),
+      hardReset: () => {
+        void cancelAllScheduledNotifications();
+        set(initialState);
+        useOnboardingStore.getState().reset();
+      },
     }),
     {
       name: 'quitaddiction-user-store',
